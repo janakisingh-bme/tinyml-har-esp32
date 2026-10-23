@@ -1,0 +1,30 @@
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Dataset: do not commit raw data
+data/*
+!data/.gitkeep
+
+# Generated models
+model/*.keras
+model/*.tflite
+model/*saved_model*/
+
+# Experiment outputs
+results/*
+!results/.gitkeep
+
+# Build and local files
+build/
+dist/
+.vscode/
+.DS_Store
+Thumbs.db
