@@ -1,30 +1,53 @@
+@"
 
-# Python
-__pycache__/
-*.py[cod]
+# ESP-IDF local configuration and build artifacts
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+
+# Generated test data and binary exports
+*.bin
+
+# Large raw datasets
+UCI HAR Dataset/
+"@ | Add-Content ..\..\.gitignore
+# ESP-IDF local configuration and build artifacts
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+
+# Generated test data and binary exports
+*.bin
+
+# Large raw datasets
+UCI HAR Dataset/
+
+# ESP-IDF local configuration and build artifacts
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+
+# Generated test data and binary exports
+*.bin
+
+# Large raw datasets
+UCI HAR Dataset/
+
+# Local development environment
 .venv/
-venv/
-.env
+.vscode/
+__pycache__/
 
-# Jupyter
-.ipynb_checkpoints/
-
-# Dataset: do not commit raw data
+# Generated datasets and experiment outputs
 data/*
 !data/.gitkeep
-
-# Generated models
-model/*.keras
-model/*.tflite
-model/*saved_model*/
-
-# Experiment outputs
 results/*
 !results/.gitkeep
 
-# Build and local files
-build/
-dist/
-.vscode/
-.DS_Store
-Thumbs.db
+# Generated model artifacts
+model/*.keras
+model/*.tflite
+model/*saved_model*/
