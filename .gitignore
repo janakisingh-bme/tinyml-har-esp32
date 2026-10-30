@@ -1,53 +1,46 @@
-@"
 
-# ESP-IDF local configuration and build artifacts
-build/
-sdkconfig
-sdkconfig.old
-managed_components/
-
-# Generated test data and binary exports
-*.bin
-
-# Large raw datasets
-UCI HAR Dataset/
-"@ | Add-Content ..\..\.gitignore
-# ESP-IDF local configuration and build artifacts
-build/
-sdkconfig
-sdkconfig.old
-managed_components/
-
-# Generated test data and binary exports
-*.bin
-
-# Large raw datasets
-UCI HAR Dataset/
-
-# ESP-IDF local configuration and build artifacts
-build/
-sdkconfig
-sdkconfig.old
-managed_components/
-
-# Generated test data and binary exports
-*.bin
-
-# Large raw datasets
-UCI HAR Dataset/
-
-# Local development environment
-.venv/
-.vscode/
+# Python
 __pycache__/
+*.py[cod]
+.venv/
+venv/
+.ml-venv/
+.env
 
-# Generated datasets and experiment outputs
+# Jupyter
+.ipynb_checkpoints/
+
+# Dataset: do not commit raw data
 data/*
 !data/.gitkeep
-results/*
-!results/.gitkeep
 
-# Generated model artifacts
+# Generated models
 model/*.keras
 model/*.tflite
 model/*saved_model*/
+
+# Experiment outputs
+results/*
+!results/.gitkeep
+
+# Build and local files
+build/
+dist/
+.vscode/
+.DS_Store
+Thumbs.db
+
+
+# Local datasets
+UCI HAR Dataset/
+
+# Binary test files and hardware dumps
+*.bin
+
+# ESP-IDF generated dependencies and configuration
+firmware/esp32_har/managed_components/
+firmware/esp32_har/sdkconfig
+firmware/esp32_har/sdkconfig.old
+
+# Diagnostic archives
+*.zip

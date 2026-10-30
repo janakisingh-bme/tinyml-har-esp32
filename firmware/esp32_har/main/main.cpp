@@ -1,4 +1,5 @@
 
+#include <stdio.h>
 #include <cstdint>
 #include <cstring>
 #include <climits>
@@ -7,6 +8,8 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_partition.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
@@ -18,6 +21,7 @@ static const char *TAG = "HAR_TINYML";
 
 static constexpr int HAR_TEST_COUNT = 2947;
 static constexpr int HAR_INPUT_SIZE = 384;
+
 static constexpr size_t HAR_LABEL_OFFSET =
     static_cast<size_t>(HAR_TEST_COUNT) * HAR_INPUT_SIZE;
 
@@ -109,15 +113,19 @@ extern "C" void app_main(void)
 
     ESP_LOGI(TAG, "Tensor arena reserved: %u bytes",
              static_cast<unsigned>(sizeof(tensor_arena)));
+
     ESP_LOGI(TAG, "Free heap before interpreter allocation: %u",
              static_cast<unsigned>(free_before));
+
     ESP_LOGI(TAG, "Free heap after allocation: %u",
              static_cast<unsigned>(
                  heap_caps_get_free_size(MALLOC_CAP_8BIT)));
+
     ESP_LOGI(TAG, "Largest free heap block: %u",
              static_cast<unsigned>(
                  heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)));
 
+    // Warm-up inference
     for (int i = 0; i < 5; ++i) {
         if (esp_partition_read(
                 partition,
@@ -138,11 +146,17 @@ extern "C" void app_main(void)
     int correct = 0;
     int class_correct[6] = {};
     int class_total[6] = {};
+
     int64_t total_us = 0;
     int64_t min_us = INT64_MAX;
     int64_t max_us = 0;
 
+    printf("\nPREDICTION_LOG_START\n");
+    printf("PRED,sample,true,pred,out0,out1,out2,out3,out4,out5\n");
+
+    // Full test benchmark
     for (int i = 0; i < HAR_TEST_COUNT; ++i) {
+
         const size_t input_offset =
             static_cast<size_t>(i) * HAR_INPUT_SIZE;
 
@@ -181,6 +195,7 @@ extern "C" void app_main(void)
         }
 
         int predicted = 0;
+
         for (int c = 1; c < 6; ++c) {
             if (output->data.int8[c] >
                 output->data.int8[predicted]) {
@@ -188,30 +203,56 @@ extern "C" void app_main(void)
             }
         }
 
+        // Log every individual prediction and INT8 output.
+        printf("PRED,%d,%u,%d,%d,%d,%d,%d,%d,%d\n",
+               i,
+               static_cast<unsigned>(label),
+               predicted,
+               static_cast<int>(output->data.int8[0]),
+               static_cast<int>(output->data.int8[1]),
+               static_cast<int>(output->data.int8[2]),
+               static_cast<int>(output->data.int8[3]),
+               static_cast<int>(output->data.int8[4]),
+               static_cast<int>(output->data.int8[5]));
+
         total_us += elapsed;
+
         if (elapsed < min_us) min_us = elapsed;
         if (elapsed > max_us) max_us = elapsed;
 
         class_total[label]++;
+
         if (predicted == label) {
             correct++;
             class_correct[label]++;
         }
 
-        if ((i + 1) % 250 == 0 || i == HAR_TEST_COUNT - 1) {
+        if ((i + 1) % 250 == 0 ||
+            i == HAR_TEST_COUNT - 1) {
             ESP_LOGI(TAG, "Progress: %d/%d",
                      i + 1, HAR_TEST_COUNT);
         }
+
+        // Allow the FreeRTOS idle task to run.
+        vTaskDelay(1);
     }
 
+    printf("PREDICTION_LOG_END\n");
+
     ESP_LOGI(TAG, "===== FULL BENCHMARK SUMMARY =====");
+
     ESP_LOGI(TAG, "Correct vs labels: %d/%d (%.2f%%)",
              correct, HAR_TEST_COUNT,
              100.0f * correct / HAR_TEST_COUNT);
+
     ESP_LOGI(TAG, "Mean inference: %.2f us",
              static_cast<double>(total_us) / HAR_TEST_COUNT);
-    ESP_LOGI(TAG, "Min inference: %lld us", (long long)min_us);
-    ESP_LOGI(TAG, "Max inference: %lld us", (long long)max_us);
+
+    ESP_LOGI(TAG, "Min inference: %lld us",
+             (long long)min_us);
+
+    ESP_LOGI(TAG, "Max inference: %lld us",
+             (long long)max_us);
 
     for (int c = 0; c < 6; ++c) {
         ESP_LOGI(TAG, "%s accuracy: %d/%d (%.2f%%)",
