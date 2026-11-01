@@ -10,37 +10,51 @@ venv/
 # Jupyter
 .ipynb_checkpoints/
 
-# Dataset: do not commit raw data
+# Raw datasets
 data/*
 !data/.gitkeep
+UCI HAR Dataset/
 
-# Generated models
+# Generated model artifacts (publish separately if needed)
 model/*.keras
 model/*.tflite
 model/*saved_model*/
 
-# Experiment outputs
+# Temporary experiment outputs
 results/*
 !results/.gitkeep
+results/diagnostics/
+results/results/
 
-# Build and local files
+# Temporary diagnostics
+compare_int8_reference.py
+inspect_model_tensors.py
+inspect_notebooks.py
+inspect_prediction_mismatches.py
+notebook_inspection.txt
+representative_dataset.txt
+
+# Build and IDE files
 build/
 dist/
 .vscode/
+.idea/
 .DS_Store
 Thumbs.db
 
-
-# Local datasets
-UCI HAR Dataset/
-
-# Binary test files and hardware dumps
-*.bin
-
-# ESP-IDF generated dependencies and configuration
+# ESP-IDF generated files
+firmware/esp32_har/build/
 firmware/esp32_har/managed_components/
 firmware/esp32_har/sdkconfig
 firmware/esp32_har/sdkconfig.old
+firmware/esp32_har/dependencies.lock
 
-# Diagnostic archives
+# Python environments
+.venv/
+venv/
+.ml-venv/
+# Large local test data
+*.bin
+
+# Archives
 *.zip

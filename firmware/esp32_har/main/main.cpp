@@ -40,8 +40,10 @@ static const char *activity_names[] = {
 extern "C" void app_main(void)
 {
     ESP_LOGI(TAG, "Full UCI HAR INT8 benchmark starting");
+
     ESP_LOGI(TAG, "Model size: %u bytes",
              static_cast<unsigned>(g_har_model_len));
+
     ESP_LOGI(TAG, "Test windows: %d", HAR_TEST_COUNT);
 
     const esp_partition_t *partition =
@@ -55,7 +57,8 @@ extern "C" void app_main(void)
         return;
     }
 
-    const size_t required_size = HAR_LABEL_OFFSET + HAR_TEST_COUNT;
+    const size_t required_size =
+        HAR_LABEL_OFFSET + HAR_TEST_COUNT;
 
     if (partition->size < required_size) {
         ESP_LOGE(TAG, "Partition too small: %u bytes",
@@ -69,7 +72,8 @@ extern "C" void app_main(void)
     const size_t free_before =
         heap_caps_get_free_size(MALLOC_CAP_8BIT);
 
-    const tflite::Model *model = tflite::GetModel(g_har_model);
+    const tflite::Model *model =
+        tflite::GetModel(g_har_model);
 
     if (model->version() != TFLITE_SCHEMA_VERSION) {
         ESP_LOGE(TAG, "Model schema version mismatch");
@@ -88,6 +92,7 @@ extern "C" void app_main(void)
         resolver.AddExpandDims() != kTfLiteOk ||
         resolver.AddQuantize() != kTfLiteOk ||
         resolver.AddDequantize() != kTfLiteOk) {
+
         ESP_LOGE(TAG, "Operator registration failed");
         return;
     }
@@ -107,30 +112,52 @@ extern "C" void app_main(void)
         output->type != kTfLiteInt8 ||
         input->bytes != HAR_INPUT_SIZE ||
         output->bytes != 6) {
+
         ESP_LOGE(TAG, "Unexpected input/output tensor format");
         return;
     }
 
+    // ==========================================
+    // EMBEDDED RESOURCE UTILIZATION
+    // ==========================================
+
+    ESP_LOGI(TAG, "===== MEMORY UTILIZATION =====");
+
+    ESP_LOGI(TAG, "Model size: %u bytes",
+             static_cast<unsigned>(g_har_model_len));
+
     ESP_LOGI(TAG, "Tensor arena reserved: %u bytes",
              static_cast<unsigned>(sizeof(tensor_arena)));
 
-    ESP_LOGI(TAG, "Free heap before interpreter allocation: %u",
+    ESP_LOGI(TAG, "Tensor arena actually used: %u bytes",
+             static_cast<unsigned>(interpreter.arena_used_bytes()));
+
+    ESP_LOGI(TAG, "Free heap before interpreter allocation: %u bytes",
              static_cast<unsigned>(free_before));
 
-    ESP_LOGI(TAG, "Free heap after allocation: %u",
+    ESP_LOGI(TAG, "Free heap after allocation: %u bytes",
              static_cast<unsigned>(
                  heap_caps_get_free_size(MALLOC_CAP_8BIT)));
 
-    ESP_LOGI(TAG, "Largest free heap block: %u",
+    ESP_LOGI(TAG, "Minimum free heap: %u bytes",
+             static_cast<unsigned>(
+                 heap_caps_get_minimum_free_size(MALLOC_CAP_8BIT)));
+
+    ESP_LOGI(TAG, "Largest free heap block: %u bytes",
              static_cast<unsigned>(
                  heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)));
 
-    // Warm-up inference
+    // ==========================================
+    // WARM-UP INFERENCE
+    // ==========================================
+
     for (int i = 0; i < 5; ++i) {
+
         if (esp_partition_read(
                 partition,
                 static_cast<size_t>(i) * HAR_INPUT_SIZE,
                 sample, HAR_INPUT_SIZE) != ESP_OK) {
+
             ESP_LOGE(TAG, "Warm-up data read failed");
             return;
         }
@@ -143,6 +170,10 @@ extern "C" void app_main(void)
         }
     }
 
+    // ==========================================
+    // BENCHMARK INITIALIZATION
+    // ==========================================
+
     int correct = 0;
     int class_correct[6] = {};
     int class_total[6] = {};
@@ -152,27 +183,38 @@ extern "C" void app_main(void)
     int64_t max_us = 0;
 
     printf("\nPREDICTION_LOG_START\n");
+
     printf("PRED,sample,true,pred,out0,out1,out2,out3,out4,out5\n");
 
-    // Full test benchmark
+    // ==========================================
+    // FULL TEST BENCHMARK
+    // ==========================================
+
     for (int i = 0; i < HAR_TEST_COUNT; ++i) {
 
         const size_t input_offset =
             static_cast<size_t>(i) * HAR_INPUT_SIZE;
 
         if (esp_partition_read(
-                partition, input_offset,
-                sample, HAR_INPUT_SIZE) != ESP_OK) {
+                partition,
+                input_offset,
+                sample,
+                HAR_INPUT_SIZE) != ESP_OK) {
+
             ESP_LOGE(TAG, "Input read failed at sample %d", i);
             return;
         }
 
         uint8_t label = 0;
+
         const size_t label_offset = HAR_LABEL_OFFSET + i;
 
         if (esp_partition_read(
-                partition, label_offset,
-                &label, sizeof(label)) != ESP_OK) {
+                partition,
+                label_offset,
+                &label,
+                sizeof(label)) != ESP_OK) {
+
             ESP_LOGE(TAG, "Label read failed at sample %d", i);
             return;
         }
@@ -186,8 +228,11 @@ extern "C" void app_main(void)
         memcpy(input->data.int8, sample, HAR_INPUT_SIZE);
 
         const int64_t start = esp_timer_get_time();
+
         const TfLiteStatus status = interpreter.Invoke();
-        const int64_t elapsed = esp_timer_get_time() - start;
+
+        const int64_t elapsed =
+            esp_timer_get_time() - start;
 
         if (status != kTfLiteOk) {
             ESP_LOGE(TAG, "Inference failed at sample %d", i);
@@ -197,13 +242,16 @@ extern "C" void app_main(void)
         int predicted = 0;
 
         for (int c = 1; c < 6; ++c) {
+
             if (output->data.int8[c] >
                 output->data.int8[predicted]) {
+
                 predicted = c;
             }
         }
 
-        // Log every individual prediction and INT8 output.
+        // Individual predictions and INT8 outputs.
+
         printf("PRED,%d,%u,%d,%d,%d,%d,%d,%d,%d\n",
                i,
                static_cast<unsigned>(label),
@@ -229,6 +277,7 @@ extern "C" void app_main(void)
 
         if ((i + 1) % 250 == 0 ||
             i == HAR_TEST_COUNT - 1) {
+
             ESP_LOGI(TAG, "Progress: %d/%d",
                      i + 1, HAR_TEST_COUNT);
         }
@@ -239,10 +288,15 @@ extern "C" void app_main(void)
 
     printf("PREDICTION_LOG_END\n");
 
+    // ==========================================
+    // FINAL BENCHMARK SUMMARY
+    // ==========================================
+
     ESP_LOGI(TAG, "===== FULL BENCHMARK SUMMARY =====");
 
     ESP_LOGI(TAG, "Correct vs labels: %d/%d (%.2f%%)",
-             correct, HAR_TEST_COUNT,
+             correct,
+             HAR_TEST_COUNT,
              100.0f * correct / HAR_TEST_COUNT);
 
     ESP_LOGI(TAG, "Mean inference: %.2f us",
@@ -255,11 +309,41 @@ extern "C" void app_main(void)
              (long long)max_us);
 
     for (int c = 0; c < 6; ++c) {
+
         ESP_LOGI(TAG, "%s accuracy: %d/%d (%.2f%%)",
                  activity_names[c],
-                 class_correct[c], class_total[c],
+                 class_correct[c],
+                 class_total[c],
                  class_total[c] ?
                      100.0f * class_correct[c] / class_total[c] :
                      0.0f);
     }
+
+    // ==========================================
+    // FINAL MEMORY AND STACK MEASUREMENTS
+    // ==========================================
+
+    ESP_LOGI(TAG, "===== FINAL RESOURCE UTILIZATION =====");
+
+    ESP_LOGI(TAG, "Tensor arena used: %u bytes",
+             static_cast<unsigned>(interpreter.arena_used_bytes()));
+
+    ESP_LOGI(TAG, "Free heap at end: %u bytes",
+             static_cast<unsigned>(
+                 heap_caps_get_free_size(MALLOC_CAP_8BIT)));
+
+    ESP_LOGI(TAG, "Minimum free heap: %u bytes",
+             static_cast<unsigned>(
+                 heap_caps_get_minimum_free_size(MALLOC_CAP_8BIT)));
+
+    ESP_LOGI(TAG, "Largest free heap block: %u bytes",
+             static_cast<unsigned>(
+                 heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)));
+
+    // ESP-IDF reports this high-water mark in bytes.
+    const UBaseType_t stack_remaining =
+        uxTaskGetStackHighWaterMark(NULL);
+
+    ESP_LOGI(TAG, "Main task stack minimum free: %u bytes",
+             static_cast<unsigned>(stack_remaining));
 }
