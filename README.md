@@ -110,5 +110,3 @@ Future work will focus on:
 **Research Focus:** TinyML · Edge AI · Quantized Neural Networks · Human Activity Recognition · Embedded Intelligence
 
 *Academic research and engineering implementation. Not intended for medical diagnosis.*
-
-**Note:** Float32 and INT8 figures are recorded TFLite artifact results; a common training-checkpoint provenance has not been verified. ESP32 accuracy and latency refer to the separate on-device offline evaluation.
